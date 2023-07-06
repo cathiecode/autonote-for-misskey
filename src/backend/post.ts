@@ -1,8 +1,9 @@
-import { Column, DataSource, Entity, ObjectId, ObjectIdColumn } from "typeorm";
-import { getTypeOrmDataSource } from "./typeorm";
+import { Column, DataSource, Entity, ObjectIdColumn, ObjectId as TormObjectId } from "typeorm";
 import { Result, resultError, resultOk } from "@/utils";
+import mongoose, { Schema, ObjectId, model, Mongoose} from "mongoose";
 
 interface IPost {
+  id: string;
   userId: string;
   text: string;
   state: "draft" | "scheduled" | "posted" | "rescheduled";
@@ -46,7 +47,7 @@ export class PostEntity {
     return instance;
   }
   @ObjectIdColumn()
-  id!: ObjectId;
+  id!: TormObjectId;
 
   @Column()
   text!: string;
@@ -65,13 +66,58 @@ export class PostEntity {
   }
 }
 
+const schema = new Schema({
+  text: {type: String, required: true},
+  userId: {type: Schema.Types.ObjectId, required: true},
+  state: {type: String, required: true},
+}, {
+  methods: {
+    toObject(cb): IPost {
+      return {
+        ...this,
+        id: this._id.toHexString(),
+        userId: this._id.toHexString(),
+        state: this.state as IPost["state"]
+      };
+    }
+  }
+});
+
+export class MongoosePostRepository implements IPostRepository {
+  private Model = this.connection.model("Post", schema);
+
+  constructor(private connection: Mongoose) {}
+
+  async insert(post: IPost): Promise<string> {
+    const entity = new this.Model();
+    entity.$set(post);
+    const savedEntity = await entity.save();
+
+    return savedEntity._id.toHexString();
+  }
+  async findManyByUserId(userId: string): Promise<IPost[]> {
+    return (await this.Model.find({userId})).map(item => item.toObject());
+  }
+  async findOneById(id: string): Promise<Result<IPost, void>> {
+    const result = await this.Model.findOne({_id: id});
+    if (result) {
+      return resultOk(result.toObject());
+    } else {
+      return resultError(undefined);
+    }
+  }
+  async remove(id: string): Promise<void> {
+    await this.Model.deleteOne({_id: id});
+  }
+}
+
 export class TormPostRepository implements IPostRepository {
   constructor(private dataSource: DataSource) {}
 
   async findManyByUserId(userId: string): Promise<IPost[]> {
     return (
       await this.dataSource.manager.getRepository(PostEntity).findBy({
-        id: ObjectId.createFromHexString(userId),
+        id: TormObjectId.createFromHexString(userId),
       })
     ).map((item) => item.toObject());
   }
@@ -81,7 +127,7 @@ export class TormPostRepository implements IPostRepository {
       await this.dataSource.manager
         .getRepository(PostEntity)
         .findOneBy({
-          id: ObjectId.createFromHexString(id),
+          id: TormObjectId.createFromHexString(id),
         })
     )?.toObject();
 
@@ -109,7 +155,7 @@ export class TormPostRepository implements IPostRepository {
     const entity = await (await this.dataSource).manager
       .getRepository(PostEntity)
       .findOneBy({
-        id: ObjectId.createFromHexString(id),
+        id: TormObjectId.createFromHexString(id),
       });
 
     if (!entity) {

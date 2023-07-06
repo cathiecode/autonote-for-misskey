@@ -1,4 +1,5 @@
 import { AcceptableId, AcceptableName } from "@/policies";
+import { Mongoose, Schema } from "mongoose";
 import { Column, DataSource, Entity, ObjectId, ObjectIdColumn } from "typeorm";
 
 export interface IUser {
@@ -34,6 +35,38 @@ export class UserEntity {
       ...this,
       id: this.id.toHexString()
     }
+  }
+}
+
+const schema = new Schema({
+  name: {type: String, required: true},
+}, {
+  methods: {
+    toObject(): IUser {
+      return {
+        ...this,
+        id: this._id.toHexString()
+      }
+    }
+  }
+});
+
+export class MongooseUserRepository implements IUserRepository {
+  private Model = this.connection.model("User", schema);
+
+  constructor(private connection: Mongoose) {}
+
+  async insert(name: AcceptableName): Promise<string> {
+    const entity = new this.Model();
+
+    entity.$set({name});
+
+    const savedEntity = await entity.save();
+
+    return savedEntity.id;
+  }
+  async findOneById(id: string): Promise<IUser | undefined> {
+    return (await this.Model.findById(id))?.toObject();
   }
 }
 

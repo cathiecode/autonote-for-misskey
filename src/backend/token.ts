@@ -1,9 +1,11 @@
 import { ErrorCode } from "@/error";
-import { Result, errorIfNullable, resultOk } from "@/utils";
+import { Result, errorIfNullable, resultError, resultOk } from "@/utils";
 import { ObjectId } from "mongodb";
+import { Mongoose, Schema } from "mongoose";
 import { Column, DataSource, Entity, ObjectIdColumn } from "typeorm";
 
 export interface IToken {
+  id: string,
   userId: string,
   token: string,
   instance: string,
@@ -52,6 +54,55 @@ export class TokenEntity {
       ...this,
       id: this.id.toHexString()
     };
+  }
+}
+
+const schema = new Schema({
+  userId: {type: Schema.Types.ObjectId, required: true},
+  instance: {type: String, required: true},
+  instanceUserId: {type: String, required: true},
+  token: {type: String, required: true},
+}, {
+  methods: {
+    toObject(): IToken {
+      return {
+        ...this,
+        id: this.id.toHexString(),
+        userId: this.userId.toHexString()
+      }
+    }
+  }
+});
+
+export class MongooseTokenRepository implements ITokenRepository {
+  private Model = this.connection.model("Token", schema);
+
+  constructor(private connection: Mongoose) {}
+
+  async create(userId: string, token: string, instance: string, instanceUserId: string): Promise<Result<void, string>> {
+    const entity = new this.Model();
+    entity.$set({
+      userId,
+      token,
+      instance,
+      instanceUserId
+    });
+
+    await entity.save();
+
+    return resultOk(undefined);
+  }
+  async findManyByUserId(userId: string): Promise<IToken[]> {
+    return this.Model.find({userId});
+  }
+  async findOneByTokenId(id: string): Promise<Result<IToken, void>> {
+    const result = await this.Model.findById(id);
+
+    if (result) {
+      return resultOk(result.toObject());
+    } else {
+      return resultError(undefined);
+    }
   }
 }
 

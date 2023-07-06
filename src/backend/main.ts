@@ -1,19 +1,19 @@
 import "reflect-metadata";
 import {
   IPasswordAuthCredentialRepository,
-  TormPasswordAuthCredentialRepository,
+  MongoosePasswordAuthCredentialRepository,
 } from "./auth";
 import {
   AgendaScheduledJobDefRegistory,
 } from "./job";
-import { PostJob, RegisterPostJobDef } from "./jobs";
-import { ISessionRepository, TormSessionRepository } from "./session";
-import { IUserRepository, TormUserRepository } from "./user";
-import { getTypeOrmDataSource } from "./typeorm";
+import { RegisterPostJobDef } from "./jobs";
+import { ISessionRepository, MongooseSessionRepository } from "./session";
+import { IUserRepository, MongooseUserRepository } from "./user";
+import { getMongooseConnection, getTypeOrmDataSource } from "./connection";
 import { Result, resultError, resultOk } from "@/utils";
 import { APPLICATION_ERROR, LOGINID_ALREADY_TAKEN } from "@/error";
 import { AcceptableId, AcceptableName, AcceptablePassword } from "@/policies";
-import { IToken, ITokenRepository, TormTokenRepository } from "./token";
+import { IToken, ITokenRepository, MongooseTokenRepository } from "./token";
 
 export class Usecases {
   constructor(
@@ -94,14 +94,18 @@ export class Usecases {
     if (this.instance) {
       return this.instance;
     }
-    const dataSource = await getTypeOrmDataSource();
+    const connection = await getMongooseConnection();
+
+    console.log("set up instance");
 
     this.instance = new Usecases(
-      new TormUserRepository(dataSource),
-      new TormPasswordAuthCredentialRepository(dataSource),
-      new TormSessionRepository(dataSource),
-      new TormTokenRepository(dataSource)
+      new MongooseUserRepository(connection),
+      new MongoosePasswordAuthCredentialRepository(connection),
+      new MongooseSessionRepository(connection),
+      new MongooseTokenRepository(connection)
     );
+
+    console.log("done set up instance")
 
     return this.instance;
   }

@@ -17,6 +17,7 @@
     "experimentalDecorators": true,
     "strictNullChecks": true,
     "emitDecoratorMetadata": true,
+
     "paths": {
       "@/*": ["./src/*"]
     },

@@ -10,6 +10,7 @@ import bcrypt from "bcrypt";
 import { Result, resultError, resultOk } from "@/utils";
 import { ErrorCode, INVALID_PASSWORD, NO_SUCH_USER, PASSWORD_ALREADY_REGISTERED } from "@/error";
 import { ObjectId } from "mongodb";
+import { Mongoose, Schema } from "mongoose";
 
 interface IPasswordAuthCredential {
   userId: string;
@@ -19,17 +20,17 @@ interface IPasswordAuthCredential {
 
 export interface IPasswordAuthCredentialRepository {
   insert(passwordAuthCredential: IPasswordAuthCredential): Promise<Result<void, ErrorCode>>;
-  checkWithUserId(
+  /*checkWithUserId(
     userId: string,
     password: string
-  ): Promise<Result<void, ErrorCode>>;
+  ): Promise<Result<void, ErrorCode>>;*/
   checkWithLoginId(
     loginId: string,
     password: string
   ): Promise<Result<void, ErrorCode>>;
-  findOneByLoginId(
+  /*findOneByLoginId(
     loginId: string
-  ): Promise<IPasswordAuthCredential | undefined>;
+  ): Promise<IPasswordAuthCredential | undefined>;*/
   update(userId: string, password: string): Promise<Result<void, ErrorCode>>;
   isLoginIdExists(loginId: string): Promise<true | false>;
 }
@@ -74,6 +75,107 @@ export class PasswordAuthCredentialEntity {
       ...this,
       userId: this.userId.toHexString()
     }
+  }
+}
+
+const schema = new Schema({
+  userId: {type: Schema.Types.ObjectId, required: true},
+  loginId: {type: String, required: true},
+  password: {type: String, required: true},
+}, {
+  methods: {
+    toObject(): IPasswordAuthCredential {
+      return {
+        ...this,
+        userId: this.userId.toHexString()
+      }
+    }
+  }
+});
+
+export class MongoosePasswordAuthCredentialRepository implements IPasswordAuthCredentialRepository {
+  private Model = this.connection.model("PasswordAuthCredential", schema);
+
+  constructor(private connection: Mongoose) {}
+
+
+  async insert(passwordAuthCredential: IPasswordAuthCredential): Promise<Result<void, string>> {
+    const entity = new this.Model();
+
+    entity.$set({
+      ...passwordAuthCredential,
+      password: bcrypt.hash(passwordAuthCredential.password, 10)
+    });
+
+    await entity.save();
+
+    return resultOk(undefined);
+  }
+  
+  async checkWithUserId(
+    userId: string,
+    password: string
+  ): Promise<Result<void, ErrorCode>> {
+    const entity = await this.Model
+      .findOne({
+        userId
+      });
+
+    if (!entity) {
+      return resultError(NO_SUCH_USER);
+    }
+
+    if (!(await bcrypt.compare(password, entity.password))) {
+      return resultError(INVALID_PASSWORD);
+    }
+
+    return resultOk(undefined);
+  }
+
+  async checkWithLoginId(
+    loginId: string,
+    password: string
+  ): Promise<Result<void, string>> {
+    const entity = await this.Model.findOne({
+        loginId,
+      });
+
+    if (!entity) {
+      return resultError(NO_SUCH_USER);
+    }
+
+    if (!(await bcrypt.compare(password, entity.password))) {
+      return resultError(INVALID_PASSWORD);
+    }
+
+    return resultOk(undefined);
+  }
+
+  async update(
+    userId: string,
+    password: string
+  ): Promise<Result<void, ErrorCode>> {
+    const entity = await this.Model.findOne({
+        userId: ObjectId.createFromHexString(userId),
+      });
+
+    if (!entity) {
+      return resultError(NO_SUCH_USER);
+    }
+
+    entity.password = await bcrypt.hash(password, 10);
+
+    await entity.save();
+
+    return resultOk(undefined);
+  }
+
+  async isLoginIdExists(loginId: string): Promise<boolean> {
+    const entity = await this.Model.findOne({
+        loginId,
+      });
+
+    return !!entity;
   }
 }
 

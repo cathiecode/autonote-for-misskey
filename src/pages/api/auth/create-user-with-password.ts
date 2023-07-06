@@ -9,6 +9,7 @@ import {
   okResponse,
 } from "@/api_helpers/types";
 import { BAD_REQUEST_BODY, BAD_REQUEST_METHOD } from "@/error";
+import { idPolicy, namePolicy, passwordPolicy } from "@/policies";
 
 const ajv = new Ajv();
 
@@ -42,14 +43,34 @@ export default async function handle(
 
   if (!validateInput(req.body)) {
     res.status(403).json(errorResponse(BAD_REQUEST_BODY));
+    return;
+  }
+
+  const loginIdAsId = idPolicy.validate(req.body.loginId);
+  const loginIdAsName = namePolicy.validate(req.body.loginId);
+  const password = passwordPolicy.validate(req.body.password);
+
+  if (!loginIdAsId.ok) {
+    res.status(400).json(loginIdAsId);
+    return;
+  }
+
+  if (!loginIdAsName.ok) {
+    res.status(400).json(loginIdAsName);
+    return;
+  }
+
+  if (!password.ok) {
+    res.status(400).json(password);
+    return;
   }
 
   const session = await (
     await getController()
-  ).createSessionWithPasswordLogin(req.body.loginId, req.body.password);
+  ).createUserWithPasswordAuth(loginIdAsName.result, loginIdAsId.result, password.result);
 
   if (!session.ok) {
-    res.status(403).json(errorResponse(session.error));
+    res.status(403).json(session);
     return;
   }
 
@@ -58,7 +79,6 @@ export default async function handle(
       "Set-Cookie",
       serialize("session", session.result, {
         maxAge: 60 * 24 * 10,
-        path: "/api"
       })
     )
     .status(201)

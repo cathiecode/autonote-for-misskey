@@ -1,54 +1,62 @@
-import { getMongoUrl } from "./config";
-import {Column, DataSource, Entity, PrimaryGeneratedColumn} from "typeorm";
-import { getTypeOrmDataSource } from "./typeorm";
+import { AcceptableId, AcceptableName } from "@/policies";
+import { Column, DataSource, Entity, ObjectId, ObjectIdColumn } from "typeorm";
 
 export interface IUser {
-  id: string,
-  name: string
+  id: string;
+  name: string;
 }
 
-type IPreInsertUser = Omit<IUser, "id">;
-
 export interface IUserRepository {
-  insert(user: IPreInsertUser): Promise<string>;
+  insert(name: AcceptableName): Promise<string>;
   findOneById(id: string): Promise<IUser | undefined>;
 }
 
 @Entity()
-class UserEntity implements IUser {
-  constructor(name: string) {
-    this.id = ""; // TODO
-    this.name = name;
+export class UserEntity {
+  private constructor() {}
+  
+  static create(name: string) {
+    const instance = new UserEntity();
+
+    instance.name = name;
+
+    return instance;
   }
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+
+  @ObjectIdColumn()
+  id!: ObjectId;
 
   @Column()
-  name: string;
+  name!: string;
+
+  toObject() {
+    return {
+      ...this,
+      id: this.id.toHexString()
+    }
+  }
 }
 
 export class TormUserRepository implements IUserRepository {
-  private constructor(private dataSource: DataSource) {}
+  constructor(private dataSource: DataSource) {}
 
-  private static instance = new TormUserRepository(getTypeOrmDataSource());
+  async insert(name: AcceptableName): Promise<string> {
+    const entity = UserEntity.create(name);
 
-  static getInstance(): TormUserRepository {
-    return TormUserRepository.instance;
-  }
+    const insertedEntity = await this.dataSource.manager
+      .getRepository(UserEntity)
+      .save(entity);
 
-  async insert(user: IPreInsertUser): Promise<string> {
-    const entity = new UserEntity(user.name);
-
-    const insertedEntity = await this.dataSource.manager.save(entity);
-
-    return insertedEntity.id;
+    return insertedEntity.toObject().id;
   }
 
   async findOneById(id: string): Promise<IUser | undefined> {
-    const entity = await this.dataSource.manager.getRepository(UserEntity).findOneBy({
-      id
-    });
+    const entity = await this.dataSource.manager
+      .getRepository(UserEntity)
+      .findOneBy({
+        id: ObjectId.createFromHexString(id),
+      });
 
-    return entity ?? undefined;
+    return entity?.toObject() ?? undefined;
   }
 }

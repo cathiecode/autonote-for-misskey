@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  web:
+    build: .
+    restart: always
+    links:
+      - db
+    depends_on:
+      db:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workdir
+
+  db:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: clocked-misskey
+      MONGO_INITDB_ROOT_USERNAME: clocked-misskey
+      MONGO_INITDB_ROOT_PASSWORD: clocked-misskey
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    depends_on:
+      db:
+        condition: service_started
+
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: clocked-misskey
+      ME_CONFIG_MONGODB_ADMINPASSWORD: clocked-misskey
+      ME_CONFIG_MONGODB_URL: mongodb://clocked-misskey:clocked-misskey@db:27017/

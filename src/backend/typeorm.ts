@@ -1,7 +1,5 @@
-import { DataSource } from "typeorm";
-import { getMongoUrl } from "./config";
+import { AppDataSource } from "@/data-source";
 
-export const getTypeOrmDataSource = () => new DataSource({
-  type: "mongodb",
-  url: getMongoUrl()
-});
+export async function getTypeOrmDataSource() {
+  return await AppDataSource;
+}

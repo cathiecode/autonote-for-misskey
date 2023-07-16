@@ -1,3 +1,4 @@
+import Ajv, { JSONSchemaType } from "ajv";
 import { Response } from "./api_helpers/types";
 import { CONNECTION_ERROR, ErrorCode, INVALID_RESPONSE } from "./error";
 
@@ -76,4 +77,10 @@ export function errorIfNullable<T, E = ErrorCode>
     return resultOk(object);
   }
   return resultError(error);
+}
+
+const ajv = new Ajv({allErrors: true});
+
+export function validator<T>(schema: JSONSchemaType<T>) {
+  return ajv.compile(schema);
 }

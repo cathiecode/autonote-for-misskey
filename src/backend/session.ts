@@ -37,7 +37,7 @@ export class SessionEntity {
   @Column()
   userId!: string;
 
-  toObject() {
+  serialized() {
     return {
       ...this,
       id: this.id.toHexString(),
@@ -49,7 +49,7 @@ const schema = new Schema({
   userId: {type: Schema.Types.ObjectId, required: true},
 }, {
   methods: {
-    toObject(): ISession {
+    serialized(): ISession {
       return {
         ...this,
         id: this._id.toHexString(),
@@ -71,7 +71,7 @@ export class MongooseSessionRepository implements ISessionRepository {
   }
   async findOneById(id: string): Promise<ISession | undefined> {
     const entity = await this.Session.findById(id);
-    return entity?.toObject();
+    return entity?.serialized();
   }
 
   async remove(id: string): Promise<void> {
@@ -92,7 +92,7 @@ export class TormSessionRepository implements ISessionRepository {
       .getRepository(SessionEntity)
       .save(entity);
 
-    return savedEntity.toObject().id;
+    return savedEntity.serialized().id;
   }
 
   async findOneById(id: string): Promise<ISession | undefined> {
@@ -101,7 +101,7 @@ export class TormSessionRepository implements ISessionRepository {
         await this.dataSource.manager.getRepository(SessionEntity).findOneBy({
           id: ObjectId.createFromHexString(id),
         })
-      )?.toObject() ?? undefined
+      )?.serialized() ?? undefined
     );
   }
 }

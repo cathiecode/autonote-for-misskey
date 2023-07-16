@@ -1,4 +1,3 @@
-import HorizontalLineWithLabel from "@/component/HorizonatlLine";
 import { useId, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 import { useForm } from "react-hook-form";

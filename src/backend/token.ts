@@ -49,7 +49,7 @@ export class TokenEntity {
   @Column()
   token!: string;
 
-  toObject() {
+  serialized() {
     return {
       ...this,
       id: this.id.toHexString()
@@ -64,7 +64,7 @@ const schema = new Schema({
   token: {type: String, required: true},
 }, {
   methods: {
-    toObject(): IToken {
+    serialized(): IToken {
       return {
         ...this,
         id: this.id.toHexString(),
@@ -81,6 +81,7 @@ export class MongooseTokenRepository implements ITokenRepository {
 
   async create(userId: string, token: string, instance: string, instanceUserId: string): Promise<Result<void, string>> {
     const entity = new this.Model();
+  
     entity.$set({
       userId,
       token,
@@ -99,7 +100,7 @@ export class MongooseTokenRepository implements ITokenRepository {
     const result = await this.Model.findById(id);
 
     if (result) {
-      return resultOk(result.toObject());
+      return resultOk(result.serialized());
     } else {
       return resultError(undefined);
     }
@@ -117,12 +118,12 @@ export class TormTokenRepository implements ITokenRepository {
   async findManyByUserId(id: string): Promise<IToken[]> {
     return (await this.dataSource.manager.getRepository(TokenEntity).findBy({
       id: ObjectId.createFromHexString(id)
-    })).map(item => item.toObject());
+    })).map(item => item.serialized());
   }
 
   async findOneByTokenId(id: string): Promise<Result<IToken, void>> {
     return errorIfNullable((await this.dataSource.manager.getRepository(TokenEntity).findOneBy({
       id: ObjectId.createFromHexString(id)
-    }))?.toObject(), undefined);
+    }))?.serialized(), undefined);
   }
 }

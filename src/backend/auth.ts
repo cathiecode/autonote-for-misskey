@@ -27,7 +27,7 @@ export interface IPasswordAuthCredentialRepository {
   checkWithLoginId(
     loginId: string,
     password: string
-  ): Promise<Result<void, ErrorCode>>;
+  ): Promise<Result<string, ErrorCode>>;
   /*findOneByLoginId(
     loginId: string
   ): Promise<IPasswordAuthCredential | undefined>;*/
@@ -70,7 +70,7 @@ export class PasswordAuthCredentialEntity {
   password!: string;
 
 
-  toObject(): IPasswordAuthCredential {
+  serialized(): IPasswordAuthCredential {
     return {
       ...this,
       userId: this.userId.toHexString()
@@ -84,7 +84,7 @@ const schema = new Schema({
   password: {type: String, required: true},
 }, {
   methods: {
-    toObject(): IPasswordAuthCredential {
+    serialized(): IPasswordAuthCredential {
       return {
         ...this,
         userId: this.userId.toHexString()
@@ -104,7 +104,7 @@ export class MongoosePasswordAuthCredentialRepository implements IPasswordAuthCr
 
     entity.$set({
       ...passwordAuthCredential,
-      password: bcrypt.hash(passwordAuthCredential.password, 10)
+      password: await bcrypt.hash(passwordAuthCredential.password, 10)
     });
 
     await entity.save();
@@ -135,7 +135,7 @@ export class MongoosePasswordAuthCredentialRepository implements IPasswordAuthCr
   async checkWithLoginId(
     loginId: string,
     password: string
-  ): Promise<Result<void, string>> {
+  ): Promise<Result<string, string>> {
     const entity = await this.Model.findOne({
         loginId,
       });
@@ -148,7 +148,7 @@ export class MongoosePasswordAuthCredentialRepository implements IPasswordAuthCr
       return resultError(INVALID_PASSWORD);
     }
 
-    return resultOk(undefined);
+    return resultOk(entity.userId.toHexString());
   }
 
   async update(
@@ -190,7 +190,7 @@ export class TormPasswordAuthCredentialRepository
       (await (await this.dataSource).manager
         .getRepository(PasswordAuthCredentialEntity)
         .findOneBy({ loginId })) ?? undefined
-    )?.toObject();
+    )?.serialized();
   }
 
   async insert(passwordAuthCredential: IPasswordAuthCredential): Promise<Result<void, ErrorCode>> {
@@ -234,7 +234,7 @@ export class TormPasswordAuthCredentialRepository
   async checkWithLoginId(
     loginId: string,
     password: string
-  ): Promise<Result<void, string>> {
+  ): Promise<Result<string, string>> {
     const entity = await this.dataSource.manager
       .getRepository(PasswordAuthCredentialEntity)
       .findOneBy({
@@ -249,7 +249,7 @@ export class TormPasswordAuthCredentialRepository
       return resultError(INVALID_PASSWORD);
     }
 
-    return resultOk(undefined);
+    return resultOk(entity.userId.toHexString());
   }
 
   async update(

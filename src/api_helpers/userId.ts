@@ -18,5 +18,5 @@ export default async function requiresUserId<T>(req: NextApiRequest, res: NextAp
     return;
   }
 
-  return 
+  return userId;
 }

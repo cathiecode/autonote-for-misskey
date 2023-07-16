@@ -58,7 +58,7 @@ export class PostEntity {
   @Column()
   state!: "draft" | "scheduled" | "posted" | "rescheduled";
 
-  toObject() {
+  serialized() {
     return {
       ...this,
       id: this.id.toHexString(),
@@ -72,7 +72,7 @@ const schema = new Schema({
   state: {type: String, required: true},
 }, {
   methods: {
-    toObject(cb): IPost {
+    serialized(): IPost {
       return {
         ...this,
         id: this._id.toHexString(),
@@ -96,12 +96,12 @@ export class MongoosePostRepository implements IPostRepository {
     return savedEntity._id.toHexString();
   }
   async findManyByUserId(userId: string): Promise<IPost[]> {
-    return (await this.Model.find({userId})).map(item => item.toObject());
+    return (await this.Model.find({userId})).map(item => item.serialized());
   }
   async findOneById(id: string): Promise<Result<IPost, void>> {
     const result = await this.Model.findOne({_id: id});
     if (result) {
-      return resultOk(result.toObject());
+      return resultOk(result.serialized());
     } else {
       return resultError(undefined);
     }
@@ -119,7 +119,7 @@ export class TormPostRepository implements IPostRepository {
       await this.dataSource.manager.getRepository(PostEntity).findBy({
         id: TormObjectId.createFromHexString(userId),
       })
-    ).map((item) => item.toObject());
+    ).map((item) => item.serialized());
   }
 
   async findOneById(id: string): Promise<Result<IPost, void>> {
@@ -129,7 +129,7 @@ export class TormPostRepository implements IPostRepository {
         .findOneBy({
           id: TormObjectId.createFromHexString(id),
         })
-    )?.toObject();
+    )?.serialized();
 
     if (!entity) {
       return resultError(entity);
@@ -148,7 +148,7 @@ export class TormPostRepository implements IPostRepository {
       .getRepository(PostEntity)
       .save(entity);
 
-    return savedEntity.toObject().id;
+    return savedEntity.serialized().id;
   }
 
   async remove(id: string): Promise<void> {

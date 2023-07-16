@@ -79,6 +79,7 @@ export default async function handle(
       "Set-Cookie",
       serialize("session", session.result, {
         maxAge: 60 * 24 * 10,
+        path: "/api"
       })
     )
     .status(201)

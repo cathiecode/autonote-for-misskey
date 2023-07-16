@@ -30,7 +30,7 @@ export class UserEntity {
   @Column()
   name!: string;
 
-  toObject() {
+  serialized() {
     return {
       ...this,
       id: this.id.toHexString()
@@ -42,7 +42,7 @@ const schema = new Schema({
   name: {type: String, required: true},
 }, {
   methods: {
-    toObject(): IUser {
+    serialized(): IUser {
       return {
         ...this,
         id: this._id.toHexString()
@@ -66,7 +66,7 @@ export class MongooseUserRepository implements IUserRepository {
     return savedEntity.id;
   }
   async findOneById(id: string): Promise<IUser | undefined> {
-    return (await this.Model.findById(id))?.toObject();
+    return (await this.Model.findById(id))?.serialized();
   }
 }
 
@@ -80,7 +80,7 @@ export class TormUserRepository implements IUserRepository {
       .getRepository(UserEntity)
       .save(entity);
 
-    return insertedEntity.toObject().id;
+    return insertedEntity.serialized().id;
   }
 
   async findOneById(id: string): Promise<IUser | undefined> {
@@ -90,6 +90,6 @@ export class TormUserRepository implements IUserRepository {
         id: ObjectId.createFromHexString(id),
       });
 
-    return entity?.toObject() ?? undefined;
+    return entity?.serialized() ?? undefined;
   }
 }

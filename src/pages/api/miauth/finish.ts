@@ -3,13 +3,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { Response, errorResponse, okResponse } from "@/api_helpers/types";
 import requiresUserId from "@/api_helpers/userId";
 import { BAD_REQUEST_METHOD } from "@/error";
-import { resultError, resultOk } from "@/utils";
+import { resultOk } from "@/utils";
 import { getController } from "@/backend/main";
-import { IToken } from "@/backend/token";
 
-export type Output = {
-  list: IToken[]
-};
+export type Output = undefined;
 
 export default async function handle(
   req: NextApiRequest,
@@ -26,7 +23,12 @@ export default async function handle(
     return;
   }
 
-  const result = await (await getController()).getTokenList(userId);
+  const result = await (await getController()).validateMiAuth(userId, req.query.session as string);
+  
+  if (!result.ok) {
+    res.status(500).json(result);
+    return;
+  }
 
-  res.status(200).json(resultOk({list: result}));
+  res.status(200).json(resultOk(undefined));
 }
